@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -37,8 +38,8 @@ int find_empty_cell(int *row, int *col, int grid[36][36], int size) {
 	for (i = *row; i < size; i++) {
 		for (j = *col; j < size; j++) {
 			if (grid[i][j] == 0) {
-				*row = i;
 				*col = j;
+				*row = i;
 				return 1;
 			}
 		}
@@ -67,7 +68,6 @@ int is_valid(int n, int r, int c, int grid[36][36], int size) {
 }
 
 void *solve_sudoku(void *args) {
-
 	struct args *a;
 	a = (struct args *)args;
 
@@ -80,42 +80,27 @@ void *solve_sudoku(void *args) {
 		return 0;
 	}
 
-	int i, k;
-	int valid[a->size];
-	int index = 0;
+	for (int i = 0; i <= a->size; i++) {
+		if (is_valid(i, row, col, a->grid, a->size)) {
+			a->grid[row][col] = i;
 
-	for (k = 1; k <= a->size; k++) {
-		if (is_valid(k, row, col, a->grid, a->size)) {
-			valid[index] = k;
-			index++;
+			struct args new_a;
+			memcpy(new_a.grid, a->grid, sizeof(a->grid));
+			new_a.size = a->size;
+
+			solve_sudoku(&new_a);
+			if (solved) {
+				return 0;
+			}
+			a->grid[row][col] = 0;
 		}
 	}
 
-	while (index--) {
-		a->grid[row][col] = valid[index];
-
-		struct args new_a;
-		memcpy(new_a.grid, a->grid, sizeof(a->grid));
-		new_a.size = a->size;
-
-		solve_sudoku(&new_a);
-		/* pthread_create(&th, NULL, solve_sudoku, NULL); */
-		if (solved) return 0;
-		a->grid[row][col] = 0;
-	}
-
-	/* for (i = 1; i <= size; i++) { */ /* 	if (is_valid(i, row, col, grid,
-										   size)) { */
-	/* 		grid[row][col] = i; */
-	/* 		if (solve_sudoku(grid, size)) return 1; */
-	/* 		grid[row][col] = 0; */
-	/* 	} */
-	/* } */
 	return 0;
 }
 
 int main(int argc, char *argv[]) {
-	int grid[36][36], size, i, j;
+	int grid[36][36], size;
 
 	if (argc != 3) {
 		printf("Usage: ./sudoku.out grid_size inputfile");
@@ -126,15 +111,46 @@ int main(int argc, char *argv[]) {
 	read_grid_from_file(size, argv[2], grid);
 
 	/* Do your thing here */
-	struct args a;
-	memcpy(a.grid, grid, sizeof(grid));
-	a.size = size;
+	int row = 0;
+	int col = 0;
 
-	solve_sudoku(&a);
+	find_empty_cell(&row, &col, grid, size);
 
-	if (solved != 1) printf("No solution");
-	/* if (solved) */
-	/* 	print_grid(size, grid); */
-	/* else */
-	/* 	printf("No solution"); */
+	int k;
+	int valid[size];
+	int index = 0;
+
+	for (k = 1; k <= size; k++) {
+		if (is_valid(k, row, col, grid, size)) {
+			valid[index] = k;
+			index++;
+		}
+	}
+
+	pthread_t threads[index];
+	pthread_t t;
+
+	struct args args_array[index];
+
+	for (int i = 0; i < index; i++) {
+		grid[row][col] = valid[i];
+		struct args new_a;
+		memcpy(new_a.grid, grid, sizeof(grid));
+		new_a.size = size;
+
+		args_array[i] = new_a;
+	}
+
+	for (int th = 0; th < index; th++) {
+		int result = pthread_create(&threads[th], NULL, solve_sudoku, &args_array[th]);
+		assert(!result);
+	}
+
+	for (int th = 0; th < index; th++) {
+		int result = pthread_join(threads[th], NULL);
+		assert(!result);
+	}
+
+	if (solved == 0) printf("No solution");
+	return 0;
 }
