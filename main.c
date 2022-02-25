@@ -99,6 +99,28 @@ void *solve_sudoku(void *args) {
 	return 0;
 }
 
+//solve for first box to spawn threads
+int solve_first_cell(int valid[36], int size, int grid[36][36], int *row,
+					 int *col) {
+	while (1) {
+		find_empty_cell(row, col, grid, size);
+		int k;
+		int index = 0;
+
+		for (k = 1; k <= size; k++) {
+			if (is_valid(k, *row, *col, grid, size)) {
+				valid[index] = k;
+				index++;
+			}
+		}
+		if (index != 1) {
+			return index;
+		} else {
+			grid[*row][*col] = valid[0];
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
 	int grid[36][36], size;
 
@@ -114,21 +136,11 @@ int main(int argc, char *argv[]) {
 	int row = 0;
 	int col = 0;
 
-	find_empty_cell(&row, &col, grid, size);
+	int valid[36];
+	int index = solve_first_cell(valid, size, grid, &row, &col);
 
-	int k;
-	int valid[size];
-	int index = 0;
-
-	for (k = 1; k <= size; k++) {
-		if (is_valid(k, row, col, grid, size)) {
-			valid[index] = k;
-			index++;
-		}
-	}
-
+	printf("%d\n", index);
 	pthread_t threads[index];
-	pthread_t t;
 
 	struct args args_array[index];
 
@@ -142,11 +154,14 @@ int main(int argc, char *argv[]) {
 	}
 
 	for (int th = 0; th < index; th++) {
-		int result = pthread_create(&threads[th], NULL, solve_sudoku, &args_array[th]);
+		printf("Creating thread\n");
+		int result =
+			pthread_create(&threads[th], NULL, solve_sudoku, &args_array[th]);
 		assert(!result);
 	}
 
 	for (int th = 0; th < index; th++) {
+		printf("Stopping thread\n");
 		int result = pthread_join(threads[th], NULL);
 		assert(!result);
 	}
