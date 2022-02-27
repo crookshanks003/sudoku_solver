@@ -139,7 +139,6 @@ int main(int argc, char *argv[]) {
 	int valid[36];
 	int index = solve_first_cell(valid, size, grid, &row, &col);
 
-	printf("%d\n", index);
 	pthread_t threads[index];
 
 	struct args args_array[index];
@@ -154,14 +153,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	for (int th = 0; th < index; th++) {
-		printf("Creating thread\n");
 		int result =
 			pthread_create(&threads[th], NULL, solve_sudoku, &args_array[th]);
 		assert(!result);
 	}
 
 	for (int th = 0; th < index; th++) {
-		printf("Stopping thread\n");
 		int result = pthread_join(threads[th], NULL);
 		assert(!result);
 	}
